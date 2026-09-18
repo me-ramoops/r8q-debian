@@ -42,8 +42,9 @@ jobs:
 
       - name: Build static busybox
         run: |
-          git clone --depth 1 https://git.busybox.net/busybox busybox
-          cd busybox
+          wget -q https://busybox.net/downloads/busybox-1.36.1.tar.bz2
+          tar xf busybox-1.36.1.tar.bz2
+          cd busybox-1.36.1
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig
           sed -i 's/# CONFIG_STATIC is not set/CONFIG_STATIC=y/' .config
           make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" busybox
