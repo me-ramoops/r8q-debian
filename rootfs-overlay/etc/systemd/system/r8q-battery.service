@@ -1,0 +1,18 @@
+[Unit]
+Description=r8q battery: MAX77705 fuel gauge + charger (SE0) module load
+After=r8q-touch.service
+Requires=r8q-touch.service
+ConditionPathExists=!/sys/class/power_supply/max77705-charger
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/modprobe max17042_battery
+ExecStart=/usr/bin/modprobe max77705
+ExecStart=/usr/bin/modprobe max77705_charger
+# muic never detects the port type, charger stays at 500ma sdp: raise it so a
+# running session does not discharge while plugged in.
+ExecStartPost=/bin/sh -c 'C=/sys/class/power_supply/max77705-charger; for i in $(seq 20); do [ -e $C/input_current_limit ] && break; sleep 1; done; echo 700000 > $C/input_current_limit; echo 1000000 > $C/constant_charge_current'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

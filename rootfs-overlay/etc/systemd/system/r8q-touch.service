@@ -1,0 +1,16 @@
+[Unit]
+Description=r8q touchscreen (geni i2c + FTS5CU56A / Zinitix ZT7650) module load
+ConditionPathExists=!/sys/bus/i2c/drivers/fts5cu56a/5-0049
+ConditionPathExists=!/sys/bus/i2c/drivers/Zinitix-TS/5-0020
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/modprobe i2c-qcom-geni
+ExecStart=/bin/sh -c 'sleep 2'
+ExecStart=/usr/bin/modprobe fts5cu56a
+# dual-sourced panel: fall back to zinitix only when the stm part did not bind.
+ExecStart=-/bin/sh -c '[ -e /sys/bus/i2c/drivers/fts5cu56a/5-0049 ] || modprobe zinitix'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

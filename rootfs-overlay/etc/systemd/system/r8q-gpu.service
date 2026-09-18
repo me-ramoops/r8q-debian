@@ -1,0 +1,12 @@
+[Unit]
+Description=r8q Adreno GPU: load msm (render-only, separate_gpu_kms) after display is up
+After=multi-user.target
+ConditionPathExists=!/dev/dri/renderD128
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/modprobe msm
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

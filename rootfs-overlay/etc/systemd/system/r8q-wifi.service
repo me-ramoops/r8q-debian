@@ -1,0 +1,25 @@
+[Unit]
+Description=r8q WiFi: QCA6390 over PCIe (ath11k + MHI) module load
+# udev coldplug is blacklisted (r8q-wifi-blacklist.conf): it races the geni
+# touch/battery bring-up. load by hand, in order, after the geni bus is up.
+# phy first (pcie defers on it silently), pwrseq to power/enumerate, qrtr-mhi
+# before ath11k (it must bind the mhi ipcr channel or qmi never starts).
+After=r8q-battery.service r8q-touch.service
+Wants=r8q-battery.service
+ConditionPathExists=!/sys/class/ieee80211/phy0
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/modprobe phy-qcom-qmp-pcie
+ExecStart=/usr/bin/modprobe pwrseq-qcom-wcn
+ExecStart=/usr/bin/modprobe pci-pwrctrl-pwrseq
+ExecStart=/bin/sh -c 'for i in $(seq 200); do [ -e /sys/bus/pci/devices/0000:01:00.0 ] && exit 0; sleep 0.1; done; echo "QCA6390 did not enumerate on PCIe" >&2; exit 1'
+ExecStart=/usr/bin/modprobe qrtr-mhi
+ExecStart=/usr/bin/modprobe ath11k_pci
+# aspm off on this link only (correctable aer flood), after phy0 is up:
+# ath11k restores aspm after fw download.
+ExecStartPost=/bin/sh -c 'L=/sys/bus/pci/devices/0000:01:00.0/link; for i in $(seq 300); do [ -e /sys/class/ieee80211/phy0 ] && break; sleep 0.1; done; echo 0 > $L/l0s_aspm; echo 0 > $L/l1_aspm'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
