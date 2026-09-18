@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -yqq
-          sudo apt-get install -yqq bc bison ca-certificates clang cpio debootstrap debian-archive-keyring e2fsprogs flex git gzip kmod libelf-dev libssl-dev llvm lld make proot qemu-user-static tar
+          sudo apt-get install -yqq bc bison ca-certificates clang cpio debootstrap debian-archive-keyring e2fsprogs flex gcc-aarch64-linux-gnu git gzip kmod libelf-dev libssl-dev llvm lld make proot qemu-user-static tar
 
       - name: Build kernel
         run: |
@@ -39,11 +39,21 @@ jobs:
           KVER="$(make ARCH=arm64 LLVM=1 -s kernelrelease)"
           echo "KVER=$KVER" >> "$GITHUB_ENV"
 
+      - name: Build static busybox
+        run: |
+          git clone --depth 1 https://git.busybox.net/busybox busybox
+          cd busybox
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig
+          sed -i 's/# CONFIG_STATIC is not set/CONFIG_STATIC=y/' .config
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" busybox
+          mkdir -p ../initramfs/bin
+          cp busybox ../initramfs/bin/busybox
+          chmod +x ../initramfs/bin/busybox ../initramfs/init
+
       - name: Build initramfs and embed
         run: |
           cd linux
-          chmod +x ../initramfs/init
-          (cd ../initramfs && find . -print0 | cpio --quiet -o -H newc --null > ../initramfs.cpio)
+          sudo sh usr/gen_initramfs.sh -o "$GITHUB_WORKSPACE/initramfs.cpio" "$GITHUB_WORKSPACE/initramfs" "$GITHUB_WORKSPACE/initramfs/irfs.devnodes"
           ./scripts/config --set-str CONFIG_INITRAMFS_SOURCE "$GITHUB_WORKSPACE/initramfs.cpio"
           make ARCH=arm64 LLVM=1 olddefconfig
           make ARCH=arm64 LLVM=1 -j"$(nproc)" Image
