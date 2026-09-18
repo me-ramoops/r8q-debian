@@ -5,6 +5,13 @@ debian arm64 de verdade no s20 fe 5g (r8q), via uefi. sem android no caminho.
 kernel: vanadium `not_samsung.sm8250-7.2.0` branch `r8q/debian/WIP`
 bring-up baseado no r8q-arch do sitsirk, portado pra debian aqui.
 
+## links
+
+- builds (baixa os artifacts no run verde): https://github.com/monkeyfwlta/r8q-debian/actions
+- uefi mu-silicium: https://github.com/Project-Silicium/Mu-Silicium
+- heimdall: https://github.com/Benjamin-Dobell/heimdall
+- referencia original (arch): https://github.com/sitsirK/r8q-arch
+
 ## oq tu precisa baixar
 
 - os artifacts do ultimo run verde aqui do actions:
