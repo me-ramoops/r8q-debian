@@ -20,10 +20,19 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -yqq
-          sudo apt-get install -yqq bc bison ca-certificates clang cpio debootstrap debian-archive-keyring e2fsprogs flex gcc-aarch64-linux-gnu git gzip kmod libelf-dev libssl-dev llvm lld make proot qemu-user-static tar
+          sudo apt-get install -yqq bc bison ca-certificates ccache clang cpio debootstrap debian-archive-keyring e2fsprogs flex gcc-aarch64-linux-gnu git gzip kmod libelf-dev libssl-dev llvm lld make proot qemu-user-static tar
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-r8q-${{ github.run_id }}
+          restore-keys: ccache-r8q-
 
       - name: Build kernel
         run: |
+          export CC="ccache clang"
+          ccache -z
           git clone --depth 1 --branch r8q/debian/WIP https://gitlab.com/fwlta/r8q-linux.git linux
           cd linux
           make ARCH=arm64 LLVM=1 defconfig
@@ -37,6 +46,7 @@ jobs:
           make ARCH=arm64 LLVM=1 olddefconfig
           make ARCH=arm64 LLVM=1 -j"$(nproc)" Image dtbs modules
           test -f arch/arm64/boot/dts/qcom/sm8250-samsung-r8q.dtb
+          ccache -s
           KVER="$(make ARCH=arm64 LLVM=1 -s kernelrelease)"
           echo "KVER=$KVER" >> "$GITHUB_ENV"
 
@@ -56,6 +66,7 @@ jobs:
 
       - name: Build initramfs and embed
         run: |
+          export CC="ccache clang"
           cd linux
           sudo sh usr/gen_initramfs.sh -o "$GITHUB_WORKSPACE/initramfs.cpio" "$GITHUB_WORKSPACE/initramfs" "$GITHUB_WORKSPACE/initramfs/irfs.devnodes"
           ./scripts/config --set-str CONFIG_INITRAMFS_SOURCE "$GITHUB_WORKSPACE/initramfs.cpio"
@@ -65,7 +76,12 @@ jobs:
 
       - name: Create Debian ARM64 rootfs
         run: |
-          sudo debootstrap --arch=arm64 --foreign --keyring /usr/share/keyrings/debian-archive-keyring.gpg trixie rootfs https://deb.debian.org/debian || (sudo rm -rf rootfs && sudo debootstrap --arch=arm64 --foreign --no-check-gpg trixie rootfs https://deb.debian.org/debian)
+          df -h "$GITHUB_WORKSPACE" /
+          sudo debootstrap --arch=arm64 --foreign --keyring /usr/share/keyrings/debian-archive-keyring.gpg --verbose trixie rootfs https://deb.debian.org/debian
+          df -h "$GITHUB_WORKSPACE" /
+
+      - name: Second stage
+        run: |
           sudo mkdir -p rootfs/usr/bin
           sudo cp /usr/bin/qemu-aarch64-static rootfs/usr/bin/
           sudo mount -t proc proc rootfs/proc
