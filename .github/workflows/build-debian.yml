@@ -1,0 +1,114 @@
+name: Build Debian ARM64 r8q
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -yqq
+          sudo apt-get install -yqq bc bison ca-certificates clang cpio debootstrap debian-archive-keyring e2fsprogs flex git gzip kmod libelf-dev libssl-dev llvm lld make proot qemu-user-static tar
+
+      - name: Build kernel
+        run: |
+          git clone --depth 1 --branch r8q/debian/WIP https://gitlab.com/vanadium-oss/samsung-sm8250/mainline/not_samsung.sm8250-7.2.0.git linux
+          cd linux
+          make ARCH=arm64 LLVM=1 defconfig
+          scripts/kconfig/merge_config.sh -m .config ../config/r8q_bringup.config
+          ./scripts/config --module CONFIG_TOUCHSCREEN_FTS5CU56A
+          ./scripts/config --module CONFIG_TOUCHSCREEN_ZINITIX
+          ./scripts/config --module CONFIG_R8Q_CAMPROBE
+          ./scripts/config --module CONFIG_VIDEO_HI847
+          ./scripts/config --module CONFIG_VIDEO_AK7375
+          make ARCH=arm64 LLVM=1 olddefconfig
+          make ARCH=arm64 LLVM=1 -j"$(nproc)" Image dtbs modules
+          test -f arch/arm64/boot/dts/qcom/sm8250-samsung-r8q.dtb
+          KVER="$(make ARCH=arm64 LLVM=1 -s kernelrelease)"
+          echo "KVER=$KVER" >> "$GITHUB_ENV"
+
+      - name: Build initramfs and embed
+        run: |
+          cd linux
+          chmod +x ../initramfs/init
+          (cd ../initramfs && find . -print0 | cpio --quiet -o -H newc --null > ../initramfs.cpio)
+          ./scripts/config --set-str CONFIG_INITRAMFS_SOURCE "$GITHUB_WORKSPACE/initramfs.cpio"
+          make ARCH=arm64 LLVM=1 olddefconfig
+          make ARCH=arm64 LLVM=1 -j"$(nproc)" Image
+          test -f arch/arm64/boot/Image
+
+      - name: Create Debian ARM64 rootfs
+        run: |
+          sudo debootstrap --arch=arm64 --foreign --keyring /usr/share/keyrings/debian-archive-keyring.gpg trixie rootfs https://deb.debian.org/debian || (sudo rm -rf rootfs && sudo debootstrap --arch=arm64 --foreign --no-check-gpg trixie rootfs https://deb.debian.org/debian)
+          sudo mkdir -p rootfs/usr/bin
+          sudo cp /usr/bin/qemu-aarch64-static rootfs/usr/bin/
+          sudo proot -r rootfs -q /usr/bin/qemu-aarch64-static -0 env DEBOOTSTRAP_DIR=/debootstrap /debootstrap/debootstrap --second-stage
+          sudo rm -f rootfs/etc/resolv.conf
+          printf 'nameserver 1.1.1.1\n' | sudo tee rootfs/etc/resolv.conf >/dev/null
+
+      - name: Configure rootfs
+        run: |
+          sudo cp -a rootfs-overlay/. rootfs/
+          sudo chmod +x rootfs/usr/local/sbin/r8q-usb-gadget-up.sh
+          sudo tee rootfs/tmp/configure-rootfs.sh >/dev/null <<'EOF'
+          #!/bin/bash
+          set -e
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update -qq
+          apt-get install -y -qq e2fsprogs firmware-atheros firmware-qcom-soc iproute2 kmod network-manager openssh-server sudo systemd systemd-sysv wpasupplicant
+          apt-get clean
+          echo r8q > /etc/hostname
+          printf '127.0.0.1 localhost\n127.0.1.1 r8q\n' > /etc/hosts
+          printf 'LABEL=debian-root / ext4 defaults 0 1\n' > /etc/fstab
+          echo 'root:r8q' | chpasswd
+          printf 'PermitRootLogin yes\n' >> /etc/ssh/sshd_config
+          ssh-keygen -A
+          systemd-machine-id-setup || true
+          systemctl enable ssh NetworkManager r8q-usb-gadget r8q-touch r8q-battery r8q-wifi r8q-gpu || true
+          mkdir -p /lib/firmware/qcom/sm8250/Samsung/r8q
+          printf 'put the samsung-signed a650_zap.mbn from stock firmware here (scripts/extract-firmware.sh)\n' > /lib/firmware/qcom/sm8250/PUT-ZAP-HERE.txt
+          EOF
+          sudo chmod +x rootfs/tmp/configure-rootfs.sh
+          sudo proot -r rootfs -q /usr/bin/qemu-aarch64-static -b /proc -b /sys -b /dev -0 /bin/bash -c "KVER=$KVER /tmp/configure-rootfs.sh"
+
+      - name: Install kernel modules
+        run: |
+          sudo make -C linux ARCH=arm64 LLVM=1 INSTALL_MOD_PATH="$GITHUB_WORKSPACE/rootfs" modules_install
+          sudo rm -f rootfs/lib/modules/"$KVER"/source rootfs/lib/modules/"$KVER"/build
+          sudo rm -f rootfs/usr/bin/qemu-aarch64-static rootfs/etc/resolv.conf rootfs/tmp/configure-rootfs.sh
+
+      - name: Assemble ESP and images
+        run: |
+          mkdir -p esp/EFI/BOOT
+          cp linux/arch/arm64/boot/Image esp/EFI/BOOT/BOOTAA64.EFI
+          cp linux/arch/arm64/boot/dts/qcom/sm8250-samsung-r8q.dtb esp/
+          cp config/cmdline.txt esp/
+          cp initramfs.cpio esp/
+          printf 'BOOTAA64.EFI is the kernel (efi stub, initramfs embedded).\nthe dtb is also embedded into the mu-silicium uefi image at uefi build time.\n' > esp/README-ESP.txt
+          (cd esp && zip -qr ../esp-r8q.zip .)
+          sudo truncate -s 4G debian-r8q-rootfs.ext4
+          sudo mkfs.ext4 -F -L debian-root -d rootfs debian-r8q-rootfs.ext4
+          sudo tar --numeric-owner -czf debian-r8q-rootfs.tar.gz -C rootfs .
+          sudo chown "$USER:$USER" esp-r8q.zip debian-r8q-rootfs.ext4 debian-r8q-rootfs.tar.gz
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: r8q-debian
+          path: |
+            esp-r8q.zip
+            debian-r8q-rootfs.ext4
+            debian-r8q-rootfs.tar.gz
+          if-no-files-found: error
