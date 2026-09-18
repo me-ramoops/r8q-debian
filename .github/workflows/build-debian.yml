@@ -24,7 +24,7 @@ jobs:
 
       - name: Build kernel
         run: |
-          git clone --depth 1 --branch r8q/debian/WIP https://gitlab.com/vanadium-oss/samsung-sm8250/mainline/not_samsung.sm8250-7.2.0.git linux
+          git clone --depth 1 --branch r8q/debian/WIP https://gitlab.com/fwlta/r8q-linux.git linux
           cd linux
           make ARCH=arm64 LLVM=1 defconfig
           scripts/kconfig/merge_config.sh -m .config ../config/r8q_bringup.config
