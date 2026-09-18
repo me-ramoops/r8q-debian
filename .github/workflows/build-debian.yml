@@ -68,8 +68,11 @@ jobs:
           sudo debootstrap --arch=arm64 --foreign --keyring /usr/share/keyrings/debian-archive-keyring.gpg trixie rootfs https://deb.debian.org/debian || (sudo rm -rf rootfs && sudo debootstrap --arch=arm64 --foreign --no-check-gpg trixie rootfs https://deb.debian.org/debian)
           sudo mkdir -p rootfs/usr/bin
           sudo cp /usr/bin/qemu-aarch64-static rootfs/usr/bin/
-          export PROOT_NO_SECCOMP=1
-          sudo -E proot -r rootfs -q /usr/bin/qemu-aarch64-static -0 env DEBOOTSTRAP_DIR=/debootstrap /debootstrap/debootstrap --second-stage
+          sudo mount -t proc proc rootfs/proc
+          sudo mount -t sysfs sysfs rootfs/sys
+          sudo mount --bind /dev rootfs/dev
+          sudo chroot rootfs /usr/bin/qemu-aarch64-static /debootstrap/debootstrap --second-stage
+          sudo umount -l rootfs/proc rootfs/sys rootfs/dev || true
           sudo rm -f rootfs/etc/resolv.conf
           printf 'nameserver 1.1.1.1\n' | sudo tee rootfs/etc/resolv.conf >/dev/null
 
@@ -96,8 +99,11 @@ jobs:
           printf 'put the samsung-signed a650_zap.mbn from stock firmware here (scripts/extract-firmware.sh)\n' > /lib/firmware/qcom/sm8250/PUT-ZAP-HERE.txt
           EOF
           sudo chmod +x rootfs/tmp/configure-rootfs.sh
-          export PROOT_NO_SECCOMP=1
-          sudo -E proot -r rootfs -q /usr/bin/qemu-aarch64-static -b /proc -b /sys -b /dev -0 /bin/bash -c "KVER=$KVER /tmp/configure-rootfs.sh"
+          sudo mount -t proc proc rootfs/proc
+          sudo mount -t sysfs sysfs rootfs/sys
+          sudo mount --bind /dev rootfs/dev
+          sudo chroot rootfs /usr/bin/qemu-aarch64-static /bin/bash /tmp/configure-rootfs.sh
+          sudo umount -l rootfs/proc rootfs/sys rootfs/dev || true
 
       - name: Install kernel modules
         run: |
