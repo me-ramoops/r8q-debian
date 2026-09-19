@@ -82,7 +82,9 @@ jobs:
 
       - name: Second stage
         run: |
-          sudo mkdir -p rootfs/usr/bin
+          set -x
+          id; pwd; ls -la rootfs | head -n 15
+          sudo mkdir -p rootfs/usr/bin rootfs/proc rootfs/sys rootfs/dev
           sudo cp /usr/bin/qemu-aarch64-static rootfs/usr/bin/
           sudo mount -t proc proc rootfs/proc
           sudo mount -t sysfs sysfs rootfs/sys
