@@ -120,7 +120,7 @@ jobs:
           systemd-machine-id-setup || true
           systemctl enable ssh NetworkManager r8q-usb-gadget r8q-touch r8q-battery r8q-wifi r8q-gpu || true
           mkdir -p /lib/firmware/qcom/sm8250/Samsung/r8q
-          printf 'put the samsung-signed a650_zap.mbn from stock firmware here (scripts/extract-firmware.sh)\nthe generic one debian ships is ignored by design\n' > /lib/firmware/qcom/sm8250/Samsung/r8q/PUT-ZAP-HERE.txt
+          printf 'put the samsung-signed zap here: a650_zap.mdt renamed to a650_zap.mbn + a650_zap.b00/.b01/.b02 (scripts/extract-firmware.sh)\nthe generic one debian ships is ignored by design\n' > /lib/firmware/qcom/sm8250/Samsung/r8q/PUT-ZAP-HERE.txt
           EOF
           sudo chmod +x rootfs/tmp/configure-rootfs.sh
           sudo mount -t proc proc rootfs/proc

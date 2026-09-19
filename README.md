@@ -54,8 +54,8 @@ ssh root@172.16.42.1
 
 sem isso boota normal, so anda em cpu:
 
-1. pega o `a650_zap.mbn` assinado pela samsung do teu firmware stock (`scripts/extract-firmware.sh` ajuda a achar)
-2. copia pra `/lib/firmware/qcom/sm8250/Samsung/r8q/` no celular (path dedicado: o `a650_zap.mbn` generico que o debian instala em `qcom/sm8250/` nao serve e nem e lido)
+1. pega os 4 arquivos assinados pela samsung do teu firmware stock: `a650_zap.mdt` + `a650_zap.b00/.b01/.b02` de `/vendor/firmware/` (imagem vendor dentro do super.img — `lpunpack`, ou `scripts/extract-firmware.sh`)
+2. copia pra `/lib/firmware/qcom/sm8250/Samsung/r8q/` renomeando o `.mdt` pra `a650_zap.mbn` (o loader pede os 4; path dedicado: o generico do debian nem e lido)
 3. reboota. o `a650_sqe.fw` e `a650_gmu.bin` ja vem no `firmware-qcom-soc` da imagem
 
 ## se der ruim
