@@ -112,6 +112,7 @@ jobs:
           #!/bin/bash
           set -e
           export DEBIAN_FRONTEND=noninteractive
+          printf 'Types: deb\nURIs: https://deb.debian.org/debian\nSuites: trixie trixie-updates\nComponents: main contrib non-free non-free-firmware\nSigned-By: /usr/share/keyrings/debian-archive-keyring.gpg\n' > /etc/apt/sources.list.d/non-free-firmware.sources
           apt-get update -qq
           apt-get install -y -qq bluez e2fsprogs firmware-atheros firmware-qcom-soc iproute2 iw kmod network-manager openssh-server sudo systemd systemd-sysv wpasupplicant
           apt-get clean
