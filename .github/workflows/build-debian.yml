@@ -42,6 +42,9 @@ jobs:
           ./scripts/config --module CONFIG_R8Q_CAMPROBE
           ./scripts/config --module CONFIG_VIDEO_HI847
           ./scripts/config --module CONFIG_VIDEO_AK7375
+          ./scripts/config --module CONFIG_SND_SOC_QCOM_SDW
+          ./scripts/config --module CONFIG_SND_SOC_WCD938X
+          ./scripts/config --module CONFIG_SND_SOC_WCD938X_SDW
           ./scripts/config --module CONFIG_MHI_BUS
           ./scripts/config --module CONFIG_QRTR
           ./scripts/config --module CONFIG_QRTR_MHI
