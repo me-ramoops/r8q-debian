@@ -89,7 +89,7 @@ jobs:
           sudo mount -t proc proc rootfs/proc
           sudo mount -t sysfs sysfs rootfs/sys
           sudo mount --bind /dev rootfs/dev
-          sudo chroot rootfs /usr/bin/qemu-aarch64-static /debootstrap/debootstrap --second-stage
+          sudo chroot rootfs /usr/bin/qemu-aarch64-static /bin/sh -c 'DEBOOTSTRAP_DIR=/debootstrap exec /debootstrap/debootstrap --second-stage'
           sudo umount -l rootfs/proc rootfs/sys rootfs/dev || true
           sudo rm -f rootfs/etc/resolv.conf
           printf 'nameserver 1.1.1.1\n' | sudo tee rootfs/etc/resolv.conf >/dev/null
