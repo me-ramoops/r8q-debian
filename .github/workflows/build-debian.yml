@@ -42,6 +42,12 @@ jobs:
           ./scripts/config --module CONFIG_R8Q_CAMPROBE
           ./scripts/config --module CONFIG_VIDEO_HI847
           ./scripts/config --module CONFIG_VIDEO_AK7375
+          ./scripts/config --module CONFIG_MHI_BUS
+          ./scripts/config --module CONFIG_QRTR
+          ./scripts/config --module CONFIG_QRTR_MHI
+          ./scripts/config --module CONFIG_PCI_PWRCTRL_PWRSEQ
+          ./scripts/config --module CONFIG_POWER_SEQUENCING_QCOM_WCN
+          ./scripts/config --module CONFIG_PHY_QCOM_QMP_PCIE
           ./scripts/config --set-str CONFIG_INITRAMFS_SOURCE ""
           make ARCH=arm64 LLVM=1 olddefconfig
           make ARCH=arm64 LLVM=1 -j"$(nproc)" Image dtbs modules
@@ -103,7 +109,7 @@ jobs:
           set -e
           export DEBIAN_FRONTEND=noninteractive
           apt-get update -qq
-          apt-get install -y -qq e2fsprogs firmware-atheros firmware-qcom-soc iproute2 kmod network-manager openssh-server sudo systemd systemd-sysv wpasupplicant
+          apt-get install -y -qq e2fsprogs firmware-atheros firmware-qcom-soc iproute2 iw kmod network-manager openssh-server sudo systemd systemd-sysv wpasupplicant
           apt-get clean
           echo r8q > /etc/hostname
           printf '127.0.0.1 localhost\n127.0.1.1 r8q\n' > /etc/hosts
